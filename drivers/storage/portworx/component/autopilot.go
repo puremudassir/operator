@@ -13,6 +13,7 @@ import (
 	"github.com/libopenstorage/operator/pkg/constants"
 	"github.com/libopenstorage/operator/pkg/util"
 	k8sutil "github.com/libopenstorage/operator/pkg/util/k8s"
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -404,6 +405,7 @@ func (c *autopilot) getAutopilotDeploymentSpec(
 		if CASecretNameValue == "" {
 			// if not specified by the user under cluster.spec.autopilot.env , add the default value
 			CASecretNameValue = pxutil.DefaultCASecretName
+			logrus.Infof("User did not supply a value for secret name containing CA cert. Default to %v", CASecretNameValue)
 			envVars = append(envVars,
 				v1.EnvVar{
 					Name:  pxutil.EnvKeyAutopilotCASecretName,
@@ -414,6 +416,7 @@ func (c *autopilot) getAutopilotDeploymentSpec(
 		if CASecretKeyValue == "" {
 			// if not specified by the user under cluster.spec.autopilot.env , add the default value
 			CASecretKeyValue = pxutil.DefaultCASecretKey
+			logrus.Infof("User did not supply a value for secret key containing CA cert. Default to %v", CASecretKeyValue)
 			envVars = append(envVars,
 				v1.EnvVar{
 					Name:  pxutil.EnvKeyAutopilotCASecretKey,
