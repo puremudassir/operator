@@ -1047,9 +1047,9 @@ func (t *template) getVolumeMounts() []v1.VolumeMount {
 	}
 
 	volumeMounts = append(volumeMounts, v1.VolumeMount{ // ml
-		Name:      "px-generated-certs",
+		Name:      "pwx-generated-certs",
 		ReadOnly:  true,
-		MountPath: "/etc/pwx-generated-certs",
+		MountPath: "/etc/pwx/pwx-generated-certs",
 	})
 
 	return volumeMounts
@@ -1085,7 +1085,7 @@ func (t *template) getVolumes() []v1.Volume {
 	}
 
 	volumes = append(volumes, v1.Volume{ // ml
-		Name: "px-generated-certs",
+		Name: "pwx-generated-certs",
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName: "portworx-api-root-ca",
