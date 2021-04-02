@@ -1089,6 +1089,14 @@ func (t *template) getVolumes() []v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName: "portworx-api-root-ca",
+				Items: []v1.KeyToPath{
+					v1.KeyToPath{
+						Key:  "root-ca",
+						Path: "ca.crt",
+					},
+				},
+				DefaultMode: new(int32),
+				Optional:    new(bool),
 			},
 		},
 	})
