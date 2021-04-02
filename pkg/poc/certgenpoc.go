@@ -139,7 +139,14 @@ func certsetup() (serverTLSConf *tls.Config, clientTLSConf *tls.Config, err erro
 			StreetAddress: []string{"Golden Gate Bridge"},
 			PostalCode:    []string{"94016"},
 		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		// kubectl get nodes -A -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}' = 192.168.10.19 192.168.10.10 192.168.10.11 192.168.10.12
+		// kubectl get nodes -A -o jsonpath='{.items[*].status.addresses[?(@.type=="Hostname")].address}' = mudassir-k8s-1-master mudassir-k8s-1-node0 mudassir-k8s-1-node1 mudassir-k8s-1-node2
+		// kubectl get nodes -A -o jsonpath='{.items[*].metadata.annotations}' | jq -r . | grep public-ip =  "192.168.121.105", "192.168.121.178", "192.168.121.6", "192.168.121.28",
+		DNSNames: []string{"portworx-api.kube-system", "portworx-service.kube-system", "mudassir-k8s-1-master", "mudassir-k8s-1-node0", "mudassir-k8s-1-node1", "mudassir-k8s-1-node2"},
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback,
+			net.IPv4(192, 168, 10, 19), net.IPv4(192, 168, 10, 10), net.IPv4(192, 168, 10, 11), net.IPv4(192, 168, 10, 12),
+			net.IPv4(192, 168, 121, 105), net.IPv4(192, 168, 121, 178), net.IPv4(192, 168, 121, 6), net.IPv4(192, 168, 121, 28),
+		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
