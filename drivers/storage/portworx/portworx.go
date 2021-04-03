@@ -33,11 +33,11 @@ const (
 	defaultTokenLifetime              = "24h"
 	defaultSelfSignedIssuer           = "operator.portworx.io"
 	defaultTLSCACertFilename          = "rootCA.crt"
-	defaultTLSCACertMountPath         = "etc/pwx/tls-certs/ca-certs/"
+	defaultTLSCACertMountFolder       = "etc/pwx/tls-certs/ca-cert/"
 	defaultTLSServerCertFilename      = "server.crt"
-	defaultTLSServerCertMountPath     = "etc/pwx/tls-certs/server-certs/"
+	defaultTLSServerCertMountFolder   = "etc/pwx/tls-certs/server-cert/"
 	defaultTLSServerKeyFilename       = "server.key"
-	defaultTLSServerKeyMountPath      = "etc/pwx/tls-certs/server-certs/"
+	defaultTLSServerKeyMountFolder    = "etc/pwx/tls-certs/server-key/"
 	envKeyNodeWiperImage              = "PX_NODE_WIPER_IMAGE"
 	storageClusterDeleteMsg           = "Portworx service NOT removed. Portworx drives and data NOT wiped."
 	storageClusterUninstallMsg        = "Portworx service removed. Portworx drives and data NOT wiped."
@@ -631,15 +631,15 @@ func setTLSSpecDefaults(toUpdate *corev1.StorageCluster) {
 		AdvancedTLSOptions: &corev1.AdvancedTLSOptions{
 			RootCA: &corev1.CertLocation{
 				FileName:  stringPtr(defaultTLSCACertFilename),
-				MountPath: stringPtr(path.Join(defaultTLSCACertMountPath + defaultTLSCACertFilename)),
+				MountPath: stringPtr(path.Join(defaultTLSCACertMountFolder + defaultTLSCACertFilename)),
 			},
 			ServerKey: &corev1.CertLocation{
 				FileName:  stringPtr(defaultTLSServerKeyFilename),
-				MountPath: stringPtr(path.Join(defaultTLSServerCertMountPath + defaultTLSServerKeyFilename)),
+				MountPath: stringPtr(path.Join(defaultTLSServerCertMountFolder + defaultTLSServerKeyFilename)),
 			},
 			ServerCert: &corev1.CertLocation{
 				FileName:  stringPtr(defaultTLSServerCertFilename),
-				MountPath: stringPtr(path.Join(defaultTLSServerKeyMountPath, defaultTLSServerCertFilename)),
+				MountPath: stringPtr(path.Join(defaultTLSServerKeyMountFolder, defaultTLSServerCertFilename)),
 			},
 		},
 	}
@@ -691,10 +691,9 @@ func setTLSSpecDefaults(toUpdate *corev1.StorageCluster) {
 		toUpdate.Spec.Security.TLS.AdvancedTLSOptions.ServerKey = defaultTLSTemplate.AdvancedTLSOptions.ServerKey
 	}
 
-	// ml TODO: Generate MountPaths where needed
-	// util.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA)
-	// util.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA)
-	// util.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA)
+	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA, defaultTLSCACertMountFolder)
+	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA, defaultTLSServerCertMountFolder)
+	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA, defaultTLSServerKeyMountFolder)
 }
 
 func setSecuritySpecDefaults(toUpdate *corev1.StorageCluster) {

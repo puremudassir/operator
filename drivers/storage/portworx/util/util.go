@@ -18,6 +18,7 @@ import (
 	"github.com/libopenstorage/openstorage/pkg/grpcserver"
 	corev1 "github.com/libopenstorage/operator/pkg/apis/core/v1"
 	"github.com/libopenstorage/operator/pkg/constants"
+	"github.com/libopenstorage/operator/pkg/util"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -25,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -806,4 +808,18 @@ func ParseExtendedDuration(s string) (time.Duration, error) {
 // UserVolumeName returns modified volume name for the user given volume name
 func UserVolumeName(name string) string {
 	return userVolumeNamePrefix + name
+}
+
+func GenereateMountPathIfNeeded(certLocation *corev1.CertLocation, mountFolder string) {
+	// if a tls cert is specified (either from file or secret), but no MountPath is specified, generate one
+	if !util.IsEmptyOrNilCertLocation(certLocation) && util.IsEmptyOrNilStringPtr(certLocation.MountPath) {
+		if !util.IsEmptyOrNilStringPtr(certLocation.FileName) {
+			certLocation.MountPath = pointer.StringPtr(path.Join(mountFolder, *certLocation.FileName))
+			return
+		}
+		if !util.IsEmptyOrNilSecretReference(certLocation.SecretRef) {
+			certLocation.MountPath = pointer.StringPtr(path.Join(mountFolder, *certLocation.SecretRef.SecretKey))
+			return
+		}
+	}
 }
