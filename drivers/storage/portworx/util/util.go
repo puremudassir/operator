@@ -634,7 +634,7 @@ func AppendTLSEnv(clusterSpec *corev1.StorageClusterSpec, envMap map[string]*v1.
 }
 
 // GetOciMonArgumentsForTLS constructs tls related arguments for oci-mon
-func GetOciMonArgumentsForTLS(cluster *corev1.StorageCluster) ([]string, error) {
+func GetOciMonArgumentsForTLS(cluster *corev1.StorageCluster) ([]string, error) { // ml-TODO: also manage
 	// for now, only support file spec
 	if cluster.Spec.Security != nil && cluster.Spec.Security.TLS != nil && cluster.Spec.Security.TLS.AdvancedTLSOptions != nil {
 		advTLSOptions := cluster.Spec.Security.TLS.AdvancedTLSOptions
