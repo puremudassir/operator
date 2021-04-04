@@ -1453,7 +1453,7 @@ func TestStorageClusterDefaultsForSecurity(t *testing.T) {
 			Enabled: boolPtr(true),
 			AdvancedTLSOptions: &corev1.AdvancedTLSOptions{
 				ServerKey: &corev1.CertLocation{
-					FileName: stringPtr(""),
+					FileName: stringPtr(""), // ml TODO: test for permutations of secretRef get correct defaults
 				},
 			},
 		},
@@ -1512,6 +1512,7 @@ func TestTLSDefaultsWithOverrides(t *testing.T) {
 	coreops.SetInstance(coreops.New(fakek8sclient.NewSimpleClientset()))
 	driver := portworx{}
 
+	// ml TODO: permutations of file/secret sources will maintain overrides
 	// all filenames supplied
 	// setup
 	caCertFileName := stringPtr("testCA.crt")
@@ -4570,6 +4571,7 @@ func TestDeleteClusterWithoutDeleteStrategy(t *testing.T) {
 	require.Equal(t, corev1.ClusterOperationCompleted, condition.Status)
 	require.Equal(t, storageClusterDeleteMsg, condition.Reason)
 
+	// ml TODO: verify that auto-generated certs have been removed
 	// Verify that all components have been removed
 	err = testutil.List(k8sClient, serviceAccountList)
 	require.NoError(t, err)
@@ -4834,6 +4836,7 @@ func TestDeleteClusterWithUninstallStrategy(t *testing.T) {
 	require.Equal(t, cluster.Name, wiperDS.OwnerReferences[0].Name)
 	require.Equal(t, expectedDaemonSet.Spec, wiperDS.Spec)
 
+	// ml TODO: verify that auto-generated certs have been removed
 	// Verify that all components have been removed, except node wiper
 	err = testutil.List(k8sClient, serviceAccountList)
 	require.NoError(t, err)

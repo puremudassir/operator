@@ -43,6 +43,7 @@ func TestSetupContextWithToken(t *testing.T) {
 		},
 	}
 
+	// ml TODO: similar tests for auto-generated certs to see they've been created
 	tt := []struct {
 		// test name
 		name              string

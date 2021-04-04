@@ -3288,7 +3288,7 @@ func TestSecurityInstall(t *testing.T) {
 			},
 		},
 	}
-	validateAuthSecurityInstall(t, cluster)
+	validateAuthSecurityInstall(t, cluster) // ml TODO: test for auto-generated tls certs
 
 }
 
@@ -3510,7 +3510,7 @@ func TestSecurityTokenRefreshOnUpdate(t *testing.T) {
 			},
 		},
 	}
-	validateSecurityTokenRefreshOnUpdate(t, cluster)
+	validateSecurityTokenRefreshOnUpdate(t, cluster) // ml TODO: validate auto-generated tls certs
 
 	// auth enabled explicitly
 	cluster = &corev1.StorageCluster{
@@ -3837,6 +3837,7 @@ func TestDisableSecurity(t *testing.T) {
 	err = testutil.Get(k8sClient, userSecret, pxutil.SecurityPXUserTokenSecretName, cluster.Namespace)
 	require.NoError(t, err)
 
+	// ml TODO disable tls, generated certs should not be deleted?
 	// Disable security, secrets should not be deleted, but tokens should be deleted
 	cluster.Spec.Security.Enabled = false
 	err = driver.PreInstall(cluster)
