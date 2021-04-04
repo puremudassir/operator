@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -1192,8 +1193,11 @@ func assertDefaultSecuritySpec(t *testing.T, cluster *corev1.StorageCluster, exp
 		require.NotNil(t, cluster.Spec.Security.TLS)
 		require.NotNil(t, cluster.Spec.Security.TLS.AdvancedTLSOptions)
 		require.Equal(t, defaultTLSCACertFilename, *cluster.Spec.Security.TLS.AdvancedTLSOptions.RootCA.FileName)
+		require.Equal(t, path.Join(defaultTLSCACertMountFolder, defaultTLSCACertFilename), *cluster.Spec.Security.TLS.AdvancedTLSOptions.RootCA.MountPath)
 		require.Equal(t, defaultTLSServerCertFilename, *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerCert.FileName)
+		require.Equal(t, path.Join(defaultTLSServerCertMountFolder, defaultTLSServerCertFilename), *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerCert.MountPath)
 		require.Equal(t, defaultTLSServerKeyFilename, *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerKey.FileName)
+		require.Equal(t, path.Join(defaultTLSServerKeyMountFolder, defaultTLSServerKeyFilename), *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerKey.MountPath)
 	}
 }
 

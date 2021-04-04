@@ -40,7 +40,7 @@ const (
 	// PortworxSpecsDir is the directory where all the Portworx specs are stored
 	PortworxSpecsDir = "/configs"
 	// PortworxTLSCertsDir is where all tls certs are to be placed
-	PortworxTLSCertsDir = "/etc/pwx/"
+	PortworxTLSCertsDir = "/etc/pwx/" // ml TODO: remove
 
 	// DefaultPortworxServiceAccountName default name of the Portworx service account
 	DefaultPortworxServiceAccountName = "portworx"

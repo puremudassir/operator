@@ -692,8 +692,8 @@ func setTLSSpecDefaults(toUpdate *corev1.StorageCluster) {
 	}
 
 	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA, defaultTLSCACertMountFolder)
-	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA, defaultTLSServerCertMountFolder)
-	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.RootCA, defaultTLSServerKeyMountFolder)
+	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.ServerCert, defaultTLSServerCertMountFolder)
+	pxutil.GenereateMountPathIfNeeded(toUpdate.Spec.Security.TLS.AdvancedTLSOptions.ServerKey, defaultTLSServerKeyMountFolder)
 }
 
 func setSecuritySpecDefaults(toUpdate *corev1.StorageCluster) {

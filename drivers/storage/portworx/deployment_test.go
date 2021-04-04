@@ -12,6 +12,7 @@ import (
 	corev1 "github.com/libopenstorage/operator/pkg/apis/core/v1"
 	testutil "github.com/libopenstorage/operator/pkg/util/test"
 	coreops "github.com/portworx/sched-ops/k8s/core"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -334,6 +335,7 @@ func TestAutoNodeRecoveryTimeoutEnvForPxVersion2_6(t *testing.T) {
 }
 
 func TestPodSpecWithTLS(t *testing.T) {
+	logrus.SetLevel(logrus.TraceLevel)
 	k8sClient := coreops.New(fakek8sclient.NewSimpleClientset())
 	coreops.SetInstance(k8sClient)
 	nodeName := "testNode"
@@ -348,6 +350,8 @@ func TestPodSpecWithTLS(t *testing.T) {
 	s, _ := json.MarshalIndent(cluster.Spec.Security, "", "\t")
 	t.Logf("Security spec under test = \n, %v", string(s))
 	driver.SetDefaultsOnStorageCluster(cluster)
+	s, _ = json.MarshalIndent(cluster.Spec.Security, "", "\t")
+	t.Logf("Security spec after defaults = \n, %v", string(s))
 	actual, err := driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
 	validatePodSpecWithTLS("with all files specified", t, *caCertFileName, *serverCertFileName, *serverKeyFileName, actual)

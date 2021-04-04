@@ -40,8 +40,10 @@ const (
 
 type volumeInfo struct {
 	name             string
-	hostPath         string
-	mountPath        string
+	hostPath         string // The path on the host
+	mountPath        string // The path on the container
+	secretName       string // The name of the secret (mutually exclusive with mountPath)
+	secretKey        string // The key of the secret (mutually exclusive with mountPath)
 	readOnly         bool
 	mountPropagation *v1.MountPropagationMode
 	hostPathType     *v1.HostPathType
@@ -326,7 +328,7 @@ func (p *portworx) GetStoragePodSpec(
 		RestartPolicy:      v1.RestartPolicyAlways,
 		ServiceAccountName: pxutil.PortworxServiceAccountName(cluster),
 		Containers:         []v1.Container{containers},
-		Volumes:            t.getVolumes(),
+		Volumes:            t.getVolumes(), // ml
 	}
 
 	if pxutil.FeatureCSI.IsEnabled(t.cluster.Spec.FeatureGates) {
@@ -1012,6 +1014,9 @@ func (t *template) getVolumeMounts() []v1.VolumeMount {
 	if t.isK3s {
 		volumeInfoList = append(volumeInfoList, t.getK3sVolumeInfoList()...)
 	}
+	if pxutil.IsTLSEnabledOnCluster(&t.cluster.Spec) {
+		volumeInfoList = append(volumeInfoList, t.GetVolumeInfoForTLSCerts()...)
+	}
 
 	volumeMounts := make([]v1.VolumeMount, 0, len(volumeInfoList))
 	for _, v := range volumeInfoList {
@@ -1046,12 +1051,6 @@ func (t *template) getVolumeMounts() []v1.VolumeMount {
 		})
 	}
 
-	volumeMounts = append(volumeMounts, v1.VolumeMount{ // ml
-		Name:      "pwx-generated-certs",
-		ReadOnly:  true,
-		MountPath: "/etc/pwx/pwx-generated-certs",
-	})
-
 	return volumeMounts
 }
 
@@ -1064,42 +1063,43 @@ func (t *template) getVolumes() []v1.Volume {
 	if t.isK3s {
 		volumeInfoList = append(volumeInfoList, t.getK3sVolumeInfoList()...)
 	}
+	if pxutil.IsTLSEnabledOnCluster(&t.cluster.Spec) {
+		volumeInfoList = append(volumeInfoList, t.GetVolumeInfoForTLSCerts()...)
+	}
 
 	volumes := make([]v1.Volume, 0, len(volumeInfoList))
 	for _, v := range volumeInfoList {
-		volume := v1.Volume{
-			Name: v.name,
-			VolumeSource: v1.VolumeSource{
-				HostPath: &v1.HostPathVolumeSource{
-					Path: v.hostPath,
-					Type: v.hostPathType,
-				},
+		volumeSource := v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: v.hostPath,
+				Type: v.hostPathType,
 			},
+		}
+		if len(v.secretName) > 0 && len(v.secretKey) > 0 {
+			volumeSource = v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: v.secretName,
+					Items: []v1.KeyToPath{
+						{
+							Key:  v.secretKey,
+							Path: v.secretKey,
+						},
+					},
+				},
+			}
+		}
+		volume := v1.Volume{
+			Name:         v.name,
+			VolumeSource: volumeSource,
 		}
 		if t.isPKS && v.pks != nil && v.pks.hostPath != "" {
 			volume.VolumeSource.HostPath.Path = v.pks.hostPath
 		}
-		if volume.VolumeSource.HostPath.Path != "" {
+		if (volume.VolumeSource.HostPath != nil && volume.VolumeSource.HostPath.Path != "") ||
+			(volume.VolumeSource.Secret != nil && volume.VolumeSource.Secret.SecretName != "") {
 			volumes = append(volumes, volume)
 		}
 	}
-
-	volumes = append(volumes, v1.Volume{ // ml
-		Name: "pwx-generated-certs",
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{
-				SecretName: "portworx-api-root-ca",
-				Items: []v1.KeyToPath{
-					v1.KeyToPath{
-						Key:  "root-ca",
-						Path: "ca.crt",
-					},
-				},
-				DefaultMode: new(int32),
-				Optional:    new(bool),
-			},
-		},
-	})
 
 	kvdbAuth := t.loadKvdbAuth()
 	if kvdbAuth[secretKeyKvdbCert] != "" {
@@ -1178,6 +1178,53 @@ func (t *template) getK3sVolumeInfoList() []volumeInfo {
 			mountPath: "/run/containerd/containerd.sock",
 		},
 	}
+}
+
+func (t *template) GetVolumeInfoForTLSCerts() []volumeInfo {
+	spec := t.cluster.Spec
+	ret := []volumeInfo{}
+	certLocations := map[string]corev1.CertLocation{
+		"apiRootCA":     *spec.Security.TLS.AdvancedTLSOptions.RootCA,
+		"apiServerCert": *spec.Security.TLS.AdvancedTLSOptions.ServerCert,
+		"apiServerKey":  *spec.Security.TLS.AdvancedTLSOptions.ServerKey}
+	for name, certLocation := range certLocations {
+		// folderToMount := path.Dir(*certLocation.MountPath)
+		// ml TODO: check if folder already mounted
+
+		// Is this a file mount?
+		if !util.IsEmptyOrNilStringPtr(certLocation.FileName) {
+			ret = append(ret, volumeInfo{
+				name:      name,
+				hostPath:  *certLocation.FileName,
+				mountPath: *certLocation.MountPath,
+				readOnly:  true,
+			})
+		} else if !util.IsEmptyOrNilSecretReference(certLocation.SecretRef) {
+			ret = append(ret, volumeInfo{
+				name:       name,
+				secretName: *certLocation.SecretRef.SecretName,
+				secretKey:  *certLocation.SecretRef.SecretKey,
+				readOnly:   true,
+			})
+			// *volumes = append(*volumes, v1.Volume{
+			// 	Name: name, //"pwx-generated-certs",
+			// 	VolumeSource: v1.VolumeSource{
+			// 		Secret: &v1.SecretVolumeSource{
+			// 			SecretName: *certLocation.SecretRef.SecretName, // "portworx-api-root-ca",
+			// 			Items: []v1.KeyToPath{
+			// 				{
+			// 					Key:  *certLocation.SecretRef.SecretKey, //"root-ca",
+			// 					Path: name,                              //"ca.crt",
+			// 				},
+			// 			},
+			// 			DefaultMode: new(int32),
+			// 			Optional:    new(bool),
+			// 		},
+			// 	},
+			// })
+		}
+	}
+	return ret
 }
 
 func (t *template) loadKvdbAuth() map[string]string {
