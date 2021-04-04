@@ -1184,9 +1184,9 @@ func (t *template) GetVolumeInfoForTLSCerts() []volumeInfo {
 	spec := t.cluster.Spec
 	ret := []volumeInfo{}
 	certLocations := map[string]corev1.CertLocation{
-		"apiRootCA":     *spec.Security.TLS.AdvancedTLSOptions.RootCA,
-		"apiServerCert": *spec.Security.TLS.AdvancedTLSOptions.ServerCert,
-		"apiServerKey":  *spec.Security.TLS.AdvancedTLSOptions.ServerKey}
+		"apirootcA":     *spec.Security.TLS.AdvancedTLSOptions.RootCA,
+		"apiservercert": *spec.Security.TLS.AdvancedTLSOptions.ServerCert,
+		"apiserverkey":  *spec.Security.TLS.AdvancedTLSOptions.ServerKey}
 	for name, certLocation := range certLocations {
 		// folderToMount := path.Dir(*certLocation.MountPath)
 		// ml TODO: check if folder already mounted
