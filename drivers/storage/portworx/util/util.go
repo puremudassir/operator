@@ -180,17 +180,17 @@ const (
 // TLS related constants
 const (
 	// DefaultTLSCACertHostPath is the default location on the host for CA cert used by the porx API
-	DefaultTLSCACertHostPath = "etc/pwx/ca.crt"
+	DefaultTLSCACertHostPath = "/etc/pwx/ca.crt"
 	// DefaultTLSServerCertHostPath is the default location on the host for the server cert used by the porx API
-	DefaultTLSServerCertHostPath = "etc/pwx/server.crt"
+	DefaultTLSServerCertHostPath = "/etc/pwx/server.crt"
 	// DefaultTLSServerKeyHostPath is the default location on the host for the server key used by the porx API
-	DefaultTLSServerKeyHostPath = "etc/pwx/server.key"
+	DefaultTLSServerKeyHostPath = "/etc/pwx/server.key"
 	// DefaultTLSCACertMountPath is the fixed location on the runc container where the CA cert will be mounted
-	DefaultTLSCACertMountPath = "etc/pwx/api-tls-certs/ca-cert/ca.crt"
+	DefaultTLSCACertMountPath = "/api-tls-certs/ca-cert/ca.crt"
 	// DefaultTLSServerCertMountPath is the fixed location on the runc container where the server cert will be mounted
-	DefaultTLSServerCertMountPath = "etc/pwx/api-tls-certs/server-cert/server.crt"
+	DefaultTLSServerCertMountPath = "/api-tls-certs/server-cert/server.crt"
 	// DefaultTLSServerKeyMountPath is the fixed location on the runc container where the server key will be mounted
-	DefaultTLSServerKeyMountPath = "etc/pwx/api-tls-certs/server-key/server.key"
+	DefaultTLSServerKeyMountPath = "/api-tls-certs/server-key/server.key"
 
 	// EnvKeyCASecretName env var for the name of the k8s secret containing the CA cert needed to connect to portworx when TLS is enabled
 	EnvKeyCASecretName = "PX_CA_CERT_SECRET"
