@@ -339,9 +339,9 @@ func TestPodSpecWithTLS(t *testing.T) {
 	k8sClient := coreops.New(fakek8sclient.NewSimpleClientset())
 	coreops.SetInstance(k8sClient)
 	nodeName := "testNode"
-	caCertFileName := stringPtr("testCA.crt")
-	serverCertFileName := stringPtr("testServer.crt")
-	serverKeyFileName := stringPtr("testServer.key")
+	caCertFileName := stringPtr("/a/b/testCA.crt")
+	serverCertFileName := stringPtr("/c/d/testServer.crt")
+	serverKeyFileName := stringPtr("/e/f/testServer.key")
 
 	driver := portworx{}
 
@@ -354,7 +354,9 @@ func TestPodSpecWithTLS(t *testing.T) {
 	t.Logf("Security spec after defaults = \n, %v", string(s))
 	actual, err := driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
-	validatePodSpecWithTLS("with all files specified", t, *caCertFileName, *serverCertFileName, *serverKeyFileName, actual)
+	// validate
+	validateTLSEnvAndParams("with all files specified", t, actual)
+	// ml TODO: validate volumes exist
 
 	// Test2: user specifies one cert file, rest are left blank. driver should fill in the default values
 	cluster = testutil.CreateClusterWithTLS(caCertFileName, serverCertFileName, serverKeyFileName)
@@ -365,7 +367,9 @@ func TestPodSpecWithTLS(t *testing.T) {
 	driver.SetDefaultsOnStorageCluster(cluster)
 	actual, err = driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
-	validatePodSpecWithTLS("with root ca file specified", t, *caCertFileName, defaultTLSServerCertFilename, defaultTLSServerKeyFilename, actual)
+	// validate
+	validateTLSEnvAndParams("with root ca file specified", t, actual)
+	// ml TODO: validate volumes exist
 
 	// Test3: user specifies no certs, driver should fill in the default values
 	cluster = testutil.CreateClusterWithTLS(caCertFileName, serverCertFileName, serverKeyFileName)
@@ -377,7 +381,9 @@ func TestPodSpecWithTLS(t *testing.T) {
 	driver.SetDefaultsOnStorageCluster(cluster)
 	actual, err = driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
-	validatePodSpecWithTLS("with no files specified", t, defaultTLSCACertFilename, defaultTLSServerCertFilename, defaultTLSServerKeyFilename, actual)
+	// validate
+	validateTLSEnvAndParams("with no files specified", t, actual)
+	// ml TODO: validate volumes exist
 
 	// ml TODO: permutations of cert sources will result in correct defaults
 
@@ -390,17 +396,17 @@ func TestPodSpecWithTLS(t *testing.T) {
 	// Test7: user specifies ca cert as a file, cert/key in the same secret,
 }
 
-// validatePodSpecWithTLS is a helper method used by TestPodSpecWithTLS
-func validatePodSpecWithTLS(testName string, t *testing.T, caCertFileName, serverCertFileName, serverKeyFileName string, actual v1.PodSpec) {
+// validateTLSEnvAndParams is a helper method used by TestPodSpecWithTLS
+func validateTLSEnvAndParams(testName string, t *testing.T, actual v1.PodSpec) {
 	expectedArgs := []string{
 		"-c", "px-cluster",
 		"-x", "kubernetes",
 		"-b",
 		"-a",
 		"-secret_type", "k8s",
-		"-apirootca", certRootPath + caCertFileName,
-		"-apicert", certRootPath + serverCertFileName,
-		"-apikey", certRootPath + serverKeyFileName,
+		"-apirootca", pxutil.DefaultTLSCACertMountPath,
+		"-apicert", pxutil.DefaultTLSServerCertMountPath,
+		"-apikey", pxutil.DefaultTLSServerKeyMountPath,
 		"-apidisclientauth",
 	}
 

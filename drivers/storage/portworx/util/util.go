@@ -17,6 +17,7 @@ import (
 	"github.com/libopenstorage/openstorage/pkg/grpcserver"
 	corev1 "github.com/libopenstorage/operator/pkg/apis/core/v1"
 	"github.com/libopenstorage/operator/pkg/constants"
+	"github.com/libopenstorage/operator/pkg/util"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -180,11 +181,18 @@ const (
 
 // TLS related constants
 const (
-	// DefaultTLSCertHostFolder is where the user is expected to place the tls certs by default
-	DefaultTLSCertHostFolder      = "/etc/pwx"
-	DefaultTLSCACertMountPath     = "etc/pwx/api-tls-certs/ca-cert/ca.crt"
+	// DefaultTLSCACertHostPath is the default location on the host for CA cert used by the porx API
+	DefaultTLSCACertHostPath = "etc/pwx/ca.crt"
+	// DefaultTLSServerCertHostPath is the default location on the host for the server cert used by the porx API
+	DefaultTLSServerCertHostPath = "etc/pwx/server.crt"
+	// DefaultTLSServerKeyHostPath is the default location on the host for the server key used by the porx API
+	DefaultTLSServerKeyHostPath = "etc/pwx/server.key"
+	// DefaultTLSCACertMountPath is the fixed location on the runc container where the CA cert will be mounted
+	DefaultTLSCACertMountPath = "etc/pwx/api-tls-certs/ca-cert/ca.crt"
+	// DefaultTLSServerCertMountPath is the fixed location on the runc container where the server cert will be mounted
 	DefaultTLSServerCertMountPath = "etc/pwx/api-tls-certs/server-cert/server.crt"
-	DefaultTLSServerKeyMountPath  = "etc/pwx/api-tls-certs/server-key/server.key"
+	// DefaultTLSServerKeyMountPath is the fixed location on the runc container where the server key will be mounted
+	DefaultTLSServerKeyMountPath = "etc/pwx/api-tls-certs/server-key/server.key"
 
 	// EnvKeyCASecretName env var for the name of the k8s secret containing the CA cert needed to connect to portworx when TLS is enabled
 	EnvKeyCASecretName = "PX_CA_CERT_SECRET"
@@ -645,13 +653,22 @@ func AppendTLSEnv(clusterSpec *corev1.StorageClusterSpec, envMap map[string]*v1.
 // GetOciMonArgumentsForTLS constructs tls related arguments for oci-mon
 func GetOciMonArgumentsForTLS(cluster *corev1.StorageCluster) ([]string, error) {
 	if cluster.Spec.Security != nil && cluster.Spec.Security.TLS != nil && cluster.Spec.Security.TLS.AdvancedTLSOptions != nil {
+		advancedOptions := cluster.Spec.Security.TLS.AdvancedTLSOptions
+		if util.IsEmptyOrNilCertLocation(advancedOptions.RootCA) {
+			return nil, fmt.Errorf("spec.security.tls.advancedOptions.rootCA is required")
+		}
+		if util.IsEmptyOrNilCertLocation(advancedOptions.ServerCert) {
+			return nil, fmt.Errorf("spec.security.tls.advancedOptions.serverCert is required")
+		}
+		if util.IsEmptyOrNilCertLocation(advancedOptions.ServerKey) {
+			return nil, fmt.Errorf("spec.security.tls.advancedOptions.serverKey is required")
+		}
 		return []string{
 			"-apirootca", DefaultTLSCACertMountPath,
 			"-apicert", DefaultTLSServerCertMountPath,
 			"-apikey", DefaultTLSServerKeyMountPath,
 			"-apidisclientauth",
 		}, nil
-
 	}
 	return nil, fmt.Errorf("spec.security.tls.advancedOptions is required")
 }

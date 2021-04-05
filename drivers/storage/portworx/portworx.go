@@ -623,13 +623,13 @@ func setTLSSpecDefaults(toUpdate *corev1.StorageCluster) {
 		Enabled: boolPtr(false),
 		AdvancedTLSOptions: &corev1.AdvancedTLSOptions{
 			RootCA: &corev1.CertLocation{
-				FileName: stringPtr(pxutil.DefaultTLSCACertMountPath),
+				FileName: stringPtr(pxutil.DefaultTLSCACertHostPath),
 			},
 			ServerCert: &corev1.CertLocation{
-				FileName: stringPtr(pxutil.DefaultTLSServerCertMountPath),
+				FileName: stringPtr(pxutil.DefaultTLSServerCertHostPath),
 			},
 			ServerKey: &corev1.CertLocation{
-				FileName: stringPtr(pxutil.DefaultTLSServerKeyMountPath),
+				FileName: stringPtr(pxutil.DefaultTLSServerKeyHostPath),
 			},
 		},
 	}

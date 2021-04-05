@@ -15,11 +15,11 @@ func TestGetOciMonArgumentsForTLS(t *testing.T) {
 	caCertFileName := stringPtr("util_testCA.crt")
 	serverCertFileName := stringPtr("util_testServer.crt")
 	serverKeyFileName := stringPtr("util_testServer.key")
-	certRootPath := "/etc/pwx/"
+	// no matter the input, the certs will be mounted to a fixed spot
 	expectedArgs := []string{
-		"-apirootca", certRootPath + *caCertFileName,
-		"-apicert", certRootPath + *serverCertFileName,
-		"-apikey", certRootPath + *serverKeyFileName,
+		"-apirootca", DefaultTLSCACertMountPath,
+		"-apicert", DefaultTLSServerCertMountPath,
+		"-apikey", DefaultTLSServerKeyMountPath,
 		"-apidisclientauth",
 	}
 	// ml TODO: tests for permutation of file/cert sources gets correct oci-mon arguments

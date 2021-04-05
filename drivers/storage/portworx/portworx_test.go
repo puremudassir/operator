@@ -1191,9 +1191,9 @@ func assertDefaultSecuritySpec(t *testing.T, cluster *corev1.StorageCluster, exp
 	if expectTLSDefaults {
 		require.NotNil(t, cluster.Spec.Security.TLS)
 		require.NotNil(t, cluster.Spec.Security.TLS.AdvancedTLSOptions)
-		require.Equal(t, defaultTLSCACertFilename, *cluster.Spec.Security.TLS.AdvancedTLSOptions.RootCA.FileName)
-		require.Equal(t, defaultTLSServerCertFilename, *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerCert.FileName)
-		require.Equal(t, defaultTLSServerKeyFilename, *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerKey.FileName)
+		require.Equal(t, pxutil.DefaultTLSCACertHostPath, *cluster.Spec.Security.TLS.AdvancedTLSOptions.RootCA.FileName)
+		require.Equal(t, pxutil.DefaultTLSServerCertHostPath, *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerCert.FileName)
+		require.Equal(t, pxutil.DefaultTLSServerKeyHostPath, *cluster.Spec.Security.TLS.AdvancedTLSOptions.ServerKey.FileName)
 	}
 }
 
@@ -1511,9 +1511,9 @@ func TestTLSDefaultsWithOverrides(t *testing.T) {
 	// ml TODO: permutations of file/secret sources will maintain overrides
 	// all filenames supplied
 	// setup
-	caCertFileName := stringPtr("testCA.crt")
-	serverCertFileName := stringPtr("testServer.crt")
-	serverKeyFileName := stringPtr("testServer.key")
+	caCertFileName := stringPtr("/a/b/testCA.crt")
+	serverCertFileName := stringPtr("/c/d/testServer.crt")
+	serverKeyFileName := stringPtr("/e/f/testServer.key")
 	cluster := testutil.CreateClusterWithTLS(caCertFileName, serverCertFileName, serverKeyFileName)
 	// test
 	s, _ := json.MarshalIndent(cluster.Spec.Security, "", "\t")
@@ -1530,7 +1530,7 @@ func TestTLSDefaultsWithOverrides(t *testing.T) {
 	t.Logf("Security spec under test = \n, %v", string(s))
 	driver.SetDefaultsOnStorageCluster(cluster)
 	// verify
-	verifyTLSSpecFileNames(t, cluster, caCertFileName, stringPtr(defaultTLSServerCertFilename), stringPtr(defaultTLSServerKeyFilename))
+	verifyTLSSpecFileNames(t, cluster, caCertFileName, stringPtr(pxutil.DefaultTLSServerCertHostPath), stringPtr(pxutil.DefaultTLSServerKeyHostPath))
 
 	// no filename supplied
 	// setup
@@ -1540,7 +1540,7 @@ func TestTLSDefaultsWithOverrides(t *testing.T) {
 	t.Logf("Security spec under test = \n, %v", string(s))
 	driver.SetDefaultsOnStorageCluster(cluster)
 	// verify
-	verifyTLSSpecFileNames(t, cluster, stringPtr(defaultTLSCACertFilename), stringPtr(defaultTLSServerCertFilename), stringPtr(defaultTLSServerKeyFilename))
+	verifyTLSSpecFileNames(t, cluster, stringPtr(pxutil.DefaultTLSCACertHostPath), stringPtr(pxutil.DefaultTLSServerCertHostPath), stringPtr(pxutil.DefaultTLSServerKeyHostPath))
 
 	// security is enabled, but no tls section, defaults should not be generated
 	// setup
@@ -1576,7 +1576,7 @@ func TestTLSDefaultsWithOverrides(t *testing.T) {
 	t.Logf("Security spec under test = \n, %v", string(s))
 	driver.SetDefaultsOnStorageCluster(cluster)
 	// verify
-	verifyTLSSpecFileNames(t, cluster, stringPtr(defaultTLSCACertFilename), stringPtr(defaultTLSServerCertFilename), stringPtr(defaultTLSServerKeyFilename))
+	verifyTLSSpecFileNames(t, cluster, stringPtr(pxutil.DefaultTLSCACertHostPath), stringPtr(pxutil.DefaultTLSServerCertHostPath), stringPtr(pxutil.DefaultTLSServerKeyHostPath))
 
 	// tls section with empty advancedOptions, but security is enabled, defaults should be generated
 	// setup
@@ -1590,7 +1590,7 @@ func TestTLSDefaultsWithOverrides(t *testing.T) {
 	t.Logf("Security spec under test = \n, %v", string(s))
 	driver.SetDefaultsOnStorageCluster(cluster)
 	// verify
-	verifyTLSSpecFileNames(t, cluster, stringPtr(defaultTLSCACertFilename), stringPtr(defaultTLSServerCertFilename), stringPtr(defaultTLSServerKeyFilename))
+	verifyTLSSpecFileNames(t, cluster, stringPtr(pxutil.DefaultTLSCACertHostPath), stringPtr(pxutil.DefaultTLSServerCertHostPath), stringPtr(pxutil.DefaultTLSServerKeyHostPath))
 }
 
 func TestSetDefaultsOnStorageClusterForOpenshift(t *testing.T) {
