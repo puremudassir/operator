@@ -147,8 +147,6 @@ type CertLocation struct {
 	FileName *string `json:"filename,omitempty"`
 	// reference to the k8s secret that holds the cert
 	SecretRef *SecretRef `json:"secretRef,omitempty"`
-	// the location where the cert is mounted. If left blank, portworx operator will generate a value
-	MountPath *string `json:"mountPath,omitempty"`
 }
 
 // SecretRef specifies which k8s secret portworx should pick up the certificate.

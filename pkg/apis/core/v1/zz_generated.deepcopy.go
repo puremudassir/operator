@@ -146,11 +146,6 @@ func (in *CertLocation) DeepCopyInto(out *CertLocation) {
 		*out = new(SecretRef)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.MountPath != nil {
-		in, out := &in.MountPath, &out.MountPath
-		*out = new(string)
-		**out = **in
-	}
 	return
 }
 

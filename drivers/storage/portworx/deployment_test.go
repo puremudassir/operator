@@ -345,7 +345,6 @@ func TestPodSpecWithTLS(t *testing.T) {
 
 	driver := portworx{}
 
-	// ml TODO: permutations of cert sources will result in correct defaults
 	// Test1: user specifies all cert files
 	cluster := testutil.CreateClusterWithTLS(caCertFileName, serverCertFileName, serverKeyFileName)
 	s, _ := json.MarshalIndent(cluster.Spec.Security, "", "\t")
@@ -380,6 +379,8 @@ func TestPodSpecWithTLS(t *testing.T) {
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
 	validatePodSpecWithTLS("with no files specified", t, defaultTLSCACertFilename, defaultTLSServerCertFilename, defaultTLSServerKeyFilename, actual)
 
+	// ml TODO: permutations of cert sources will result in correct defaults
+
 	// Test4: user specifies ca cert in a secret, rest are left blank. driver should fill in the default values
 
 	// Test5: user specifies server cert/key in the same secret, no ca cert source specified, driver should fill in the default values
@@ -391,7 +392,6 @@ func TestPodSpecWithTLS(t *testing.T) {
 
 // validatePodSpecWithTLS is a helper method used by TestPodSpecWithTLS
 func validatePodSpecWithTLS(testName string, t *testing.T, caCertFileName, serverCertFileName, serverKeyFileName string, actual v1.PodSpec) {
-	certRootPath := "/etc/pwx/"
 	expectedArgs := []string{
 		"-c", "px-cluster",
 		"-x", "kubernetes",

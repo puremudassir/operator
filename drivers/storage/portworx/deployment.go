@@ -42,8 +42,8 @@ type volumeInfo struct {
 	name             string
 	hostPath         string // The path on the host
 	mountPath        string // The path on the container
-	secretName       string // The name of the secret (mutually exclusive with mountPath)
-	secretKey        string // The key of the secret (mutually exclusive with mountPath)
+	secretName       string // The name of the secret (mutually exclusive with hostPath)
+	secretKey        string // The key of the secret (mutually exclusive with hostPath)
 	readOnly         bool
 	mountPropagation *v1.MountPropagationMode
 	hostPathType     *v1.HostPathType
@@ -1181,50 +1181,32 @@ func (t *template) getK3sVolumeInfoList() []volumeInfo {
 }
 
 func (t *template) GetVolumeInfoForTLSCerts() []volumeInfo {
-	spec := t.cluster.Spec
+	// TLS.AdvancedTLSOptions is assumed to be filled up here with defaults (if not supplied by the user)
+	advancedOptions := t.cluster.Spec.Security.TLS.AdvancedTLSOptions
 	ret := []volumeInfo{}
-	certLocations := map[string]corev1.CertLocation{
-		"apirootcA":     *spec.Security.TLS.AdvancedTLSOptions.RootCA,
-		"apiservercert": *spec.Security.TLS.AdvancedTLSOptions.ServerCert,
-		"apiserverkey":  *spec.Security.TLS.AdvancedTLSOptions.ServerKey}
-	for name, certLocation := range certLocations {
-		// folderToMount := path.Dir(*certLocation.MountPath)
-		// ml TODO: check if folder already mounted
+	ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.RootCA, "apirootca", pxutil.DefaultTLSCACertMountPath))
+	ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.RootCA, "apiservercert", pxutil.DefaultTLSServerCertMountPath))
+	ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.RootCA, "apiserverkey", pxutil.DefaultTLSServerKeyMountPath))
+	return ret
+}
 
-		// Is this a file mount?
-		if !util.IsEmptyOrNilStringPtr(certLocation.FileName) {
-			ret = append(ret, volumeInfo{
-				name:      name,
-				hostPath:  *certLocation.FileName,
-				mountPath: *certLocation.MountPath,
-				readOnly:  true,
-			})
-		} else if !util.IsEmptyOrNilSecretReference(certLocation.SecretRef) {
-			ret = append(ret, volumeInfo{
-				name:       name,
-				secretName: *certLocation.SecretRef.SecretName,
-				secretKey:  *certLocation.SecretRef.SecretKey,
-				readOnly:   true,
-			})
-			// *volumes = append(*volumes, v1.Volume{
-			// 	Name: name, //"pwx-generated-certs",
-			// 	VolumeSource: v1.VolumeSource{
-			// 		Secret: &v1.SecretVolumeSource{
-			// 			SecretName: *certLocation.SecretRef.SecretName, // "portworx-api-root-ca",
-			// 			Items: []v1.KeyToPath{
-			// 				{
-			// 					Key:  *certLocation.SecretRef.SecretKey, //"root-ca",
-			// 					Path: name,                              //"ca.crt",
-			// 				},
-			// 			},
-			// 			DefaultMode: new(int32),
-			// 			Optional:    new(bool),
-			// 		},
-			// 	},
-			// })
+func (t *template) getVolumeInfoFromCertLocation(certLocation corev1.CertLocation, volumeName, mountPath string) volumeInfo {
+	if !util.IsEmptyOrNilStringPtr(certLocation.FileName) {
+		return volumeInfo{
+			name:      volumeName,
+			hostPath:  *certLocation.FileName,
+			mountPath: mountPath,
+			readOnly:  true,
+		}
+	} else {
+		return volumeInfo{
+			name:       volumeName,
+			secretName: *certLocation.SecretRef.SecretName,
+			secretKey:  *certLocation.SecretRef.SecretKey,
+			mountPath:  mountPath,
+			readOnly:   true,
 		}
 	}
-	return ret
 }
 
 func (t *template) loadKvdbAuth() map[string]string {

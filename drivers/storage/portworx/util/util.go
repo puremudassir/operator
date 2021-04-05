@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"github.com/libopenstorage/openstorage/pkg/grpcserver"
 	corev1 "github.com/libopenstorage/operator/pkg/apis/core/v1"
 	"github.com/libopenstorage/operator/pkg/constants"
-	"github.com/libopenstorage/operator/pkg/util"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -26,7 +24,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -39,8 +36,8 @@ const (
 	DefaultOpenshiftStartPort = 17001
 	// PortworxSpecsDir is the directory where all the Portworx specs are stored
 	PortworxSpecsDir = "/configs"
-	// PortworxTLSCertsDir is where all tls certs are to be placed
-	PortworxTLSCertsDir = "/etc/pwx/" // ml TODO: remove
+	// // PortworxTLSCertsDir is where all tls certs are to be placed
+	// PortworxTLSCertsDir = "/etc/pwx/" // ml TODO: remove
 
 	// DefaultPortworxServiceAccountName default name of the Portworx service account
 	DefaultPortworxServiceAccountName = "portworx"
@@ -128,10 +125,6 @@ const (
 	// EnvKeyDisableCSIAlpha key for the env var that is used to disable CSI
 	// alpha features
 	EnvKeyDisableCSIAlpha = "PORTWORX_DISABLE_CSI_ALPHA"
-	// EnvKeyPortworxEnableTLS is a flag for enabling operator TLS with PX
-	EnvKeyPortworxEnableTLS = "PX_ENABLE_TLS"
-	// EnvKeyPortworxEnforceTLS is a flag for enabling operator TLS with PX. TODO: temporary
-	EnvKeyPortworxEnforceTLS = "PX_ENFORCE_TLS"
 	// EnvKeyPortworxAuthSystemKey is the environment variable name for the PX security secret
 	EnvKeyPortworxAuthSystemKey = "PORTWORX_AUTH_SYSTEM_KEY"
 	// EnvKeyPortworxAuthJwtSharedSecret is an environment variable defining the PX Security JWT secret
@@ -151,15 +144,6 @@ const (
 	EnvKeyPortworxEssentials = "PORTWORX_ESSENTIALS"
 	// EnvKeyMarketplaceName env var for the name of the source marketplace
 	EnvKeyMarketplaceName = "MARKETPLACE_NAME"
-
-	// EnvKeyCASecretName env var for the name of the k8s secret containing the CA cert needed to connect to portworx when TLS is enabled
-	EnvKeyCASecretName = "PX_CA_CERT_SECRET"
-	// EnvKeyCASecretKey env var for the name of the key in the k8s secret which will retrieve the CA cert needed to connect to portworx when TLS is enabled
-	EnvKeyCASecretKey = "PX_CA_CERT_SECRET_KEY"
-	// DefaultCASecretName is the default value for EnvKeyCASecretName
-	DefaultCASecretName = "px-api-root-ca"
-	// DefaultCASecretKey is the default value for EnvKeyCASecretKey
-	DefaultCASecretKey = "root-ca"
 
 	// SecurityPXSystemSecretsSecretName is the secret name for PX security system secrets
 	SecurityPXSystemSecretsSecretName = "px-system-secrets"
@@ -192,6 +176,29 @@ const (
 	pxAnnotationPrefix   = "portworx.io"
 	labelKeyName         = "name"
 	defaultSDKPort       = 9020
+)
+
+// TLS related constants
+const (
+	// DefaultTLSCertHostFolder is where the user is expected to place the tls certs by default
+	DefaultTLSCertHostFolder      = "/etc/pwx"
+	DefaultTLSCACertMountPath     = "etc/pwx/api-tls-certs/ca-cert/ca.crt"
+	DefaultTLSServerCertMountPath = "etc/pwx/api-tls-certs/server-cert/server.crt"
+	DefaultTLSServerKeyMountPath  = "etc/pwx/api-tls-certs/server-key/server.key"
+
+	// EnvKeyCASecretName env var for the name of the k8s secret containing the CA cert needed to connect to portworx when TLS is enabled
+	EnvKeyCASecretName = "PX_CA_CERT_SECRET"
+	// EnvKeyCASecretKey env var for the name of the key in the k8s secret which will retrieve the CA cert needed to connect to portworx when TLS is enabled
+	EnvKeyCASecretKey = "PX_CA_CERT_SECRET_KEY"
+	// DefaultCASecretName is the default value for EnvKeyCASecretName
+	DefaultCASecretName = "px-api-root-ca"
+	// DefaultCASecretKey is the default value for EnvKeyCASecretKey
+	DefaultCASecretKey = "root-ca"
+
+	// EnvKeyPortworxEnableTLS is a flag for enabling operator TLS with PX
+	EnvKeyPortworxEnableTLS = "PX_ENABLE_TLS"
+	// EnvKeyPortworxEnforceTLS is a flag for enabling operator TLS with PX. TODO: temporary
+	EnvKeyPortworxEnforceTLS = "PX_ENFORCE_TLS"
 )
 
 var (
@@ -636,26 +643,12 @@ func AppendTLSEnv(clusterSpec *corev1.StorageClusterSpec, envMap map[string]*v1.
 }
 
 // GetOciMonArgumentsForTLS constructs tls related arguments for oci-mon
-func GetOciMonArgumentsForTLS(cluster *corev1.StorageCluster) ([]string, error) { // ml-TODO: also manage
-	// for now, only support file spec
+func GetOciMonArgumentsForTLS(cluster *corev1.StorageCluster) ([]string, error) {
 	if cluster.Spec.Security != nil && cluster.Spec.Security.TLS != nil && cluster.Spec.Security.TLS.AdvancedTLSOptions != nil {
-		advTLSOptions := cluster.Spec.Security.TLS.AdvancedTLSOptions
-		if advTLSOptions.RootCA == nil || advTLSOptions.RootCA.FileName == nil {
-			return nil, fmt.Errorf("spec.security.tls.advancedOptions.rootCA.filename is required")
-		}
-		rootCAfilename := advTLSOptions.RootCA.FileName
-		if advTLSOptions.ServerCert == nil || advTLSOptions.ServerCert.FileName == nil {
-			return nil, fmt.Errorf("spec.security.tls.advancedOptions.serverCert.filename is required")
-		}
-		apicertFilename := advTLSOptions.ServerCert.FileName
-		if advTLSOptions.ServerKey == nil || advTLSOptions.ServerKey.FileName == nil {
-			return nil, fmt.Errorf("spec.security.tls.advancedOptions.serverKey.filename is required")
-		}
-		apikeyFilename := advTLSOptions.ServerKey.FileName
 		return []string{
-			"-apirootca", path.Join(PortworxTLSCertsDir, *rootCAfilename),
-			"-apicert", path.Join(PortworxTLSCertsDir + *apicertFilename),
-			"-apikey", path.Join(PortworxTLSCertsDir + *apikeyFilename),
+			"-apirootca", DefaultTLSCACertMountPath,
+			"-apicert", DefaultTLSServerCertMountPath,
+			"-apikey", DefaultTLSServerKeyMountPath,
 			"-apidisclientauth",
 		}, nil
 
@@ -808,18 +801,4 @@ func ParseExtendedDuration(s string) (time.Duration, error) {
 // UserVolumeName returns modified volume name for the user given volume name
 func UserVolumeName(name string) string {
 	return userVolumeNamePrefix + name
-}
-
-func GenereateMountPathIfNeeded(certLocation *corev1.CertLocation, mountFolder string) {
-	// if a tls cert is specified (either from file or secret), but no MountPath is specified, generate one
-	if !util.IsEmptyOrNilCertLocation(certLocation) && util.IsEmptyOrNilStringPtr(certLocation.MountPath) {
-		if !util.IsEmptyOrNilStringPtr(certLocation.FileName) {
-			certLocation.MountPath = pointer.StringPtr(path.Join(mountFolder, *certLocation.FileName))
-			return
-		}
-		if !util.IsEmptyOrNilSecretReference(certLocation.SecretRef) {
-			certLocation.MountPath = pointer.StringPtr(path.Join(mountFolder, *certLocation.SecretRef.SecretKey))
-			return
-		}
-	}
 }
