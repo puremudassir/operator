@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -339,9 +340,9 @@ func TestPodSpecWithTLS(t *testing.T) {
 	k8sClient := coreops.New(fakek8sclient.NewSimpleClientset())
 	coreops.SetInstance(k8sClient)
 	nodeName := "testNode"
-	caCertFileName := stringPtr("/a/b/testCA.crt")
-	serverCertFileName := stringPtr("/c/d/testServer.crt")
-	serverKeyFileName := stringPtr("/e/f/testServer.key")
+	caCertFileName := stringPtr("testCA.crt")
+	serverCertFileName := stringPtr("testServer.crt")
+	serverKeyFileName := stringPtr("testServer.key")
 
 	driver := portworx{}
 
@@ -355,7 +356,10 @@ func TestPodSpecWithTLS(t *testing.T) {
 	actual, err := driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
 	// validate
-	validateTLSEnvAndParams("with all files specified", t, actual)
+	validatePodSpecWithTLS("with all files specified", t,
+		path.Join(pxutil.DefaultTLSCertsFolder, *caCertFileName),
+		path.Join(pxutil.DefaultTLSCertsFolder, *serverCertFileName),
+		path.Join(pxutil.DefaultTLSCertsFolder, *serverKeyFileName), actual)
 	// ml TODO: validate volumes exist
 
 	// Test2: user specifies one cert file, rest are left blank. driver should fill in the default values
@@ -368,7 +372,10 @@ func TestPodSpecWithTLS(t *testing.T) {
 	actual, err = driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
 	// validate
-	validateTLSEnvAndParams("with root ca file specified", t, actual)
+	validatePodSpecWithTLS("with root ca file specified", t,
+		path.Join(pxutil.DefaultTLSCertsFolder, *caCertFileName),
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSServerCertHostFile),
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSServerKeyHostFile), actual)
 	// ml TODO: validate volumes exist
 
 	// Test3: user specifies no certs, driver should fill in the default values
@@ -382,12 +389,57 @@ func TestPodSpecWithTLS(t *testing.T) {
 	actual, err = driver.GetStoragePodSpec(cluster, nodeName)
 	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
 	// validate
-	validateTLSEnvAndParams("with no files specified", t, actual)
+	validatePodSpecWithTLS("with no files specified", t,
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSCACertHostFile),
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSServerCertHostFile),
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSServerKeyHostFile), actual)
 	// ml TODO: validate volumes exist
 
 	// ml TODO: permutations of cert sources will result in correct defaults
 
 	// Test4: user specifies ca cert in a secret, rest are left blank. driver should fill in the default values
+	cluster = testutil.CreateClusterWithTLS(nil, nil, nil)
+	cluster.Spec.Security.TLS.AdvancedTLSOptions.RootCA = &corev1.CertLocation{
+		SecretRef: &corev1.SecretRef{
+			SecretName: stringPtr("testrootcasecret"),
+			SecretKey:  stringPtr("testrootcasecretkey"),
+		},
+	}
+	s, _ = json.MarshalIndent(cluster.Spec.Security, "", "\t")
+	t.Logf("Security spec under test = \n, %v", string(s))
+	driver.SetDefaultsOnStorageCluster(cluster)
+	actual, err = driver.GetStoragePodSpec(cluster, nodeName)
+	assert.NoError(t, err, "Unexpected error on GetStoragePodSpec")
+	// validate
+	s, _ = json.MarshalIndent(actual, "", "\t")
+	t.Logf("pod spec for ca cert from secret = \n, %v", string(s))
+	validatePodSpecWithTLS("with ca in cert, no other file specified", t,
+		path.Join(pxutil.DefaultTLSCACertMountPath, "testrootcasecretkey"), // /api-tls-certs/ca-cert/testrootcasecretkey
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSServerCertHostFile),
+		path.Join(pxutil.DefaultTLSCertsFolder, pxutil.DefaultTLSServerKeyHostFile), actual)
+	// validate that volume and volume mount exist
+	var caVolume *v1.Volume = nil
+	for _, v := range actual.Volumes {
+		if v.Name == "apirootca" {
+			caVolume = v.DeepCopy()
+			break
+		}
+	}
+	assert.NotNil(t, caVolume)
+	assert.NotNil(t, caVolume.Secret)
+	assert.Equal(t, "testrootcasecret", caVolume.Secret.SecretName)
+	assert.NotEmpty(t, caVolume.Secret.Items)
+	assert.Equal(t, "testrootcasecretkey", caVolume.Secret.Items[0].Key)
+	assert.Equal(t, "testrootcasecretkey", caVolume.Secret.Items[0].Path)
+	var caVolumeMount *v1.VolumeMount = nil
+	for _, v := range actual.Containers[0].VolumeMounts {
+		if v.Name == "apirootca" {
+			caVolumeMount = v.DeepCopy()
+			break
+		}
+	}
+	assert.NotNil(t, caVolumeMount)
+	assert.Equal(t, pxutil.DefaultTLSCACertMountPath, caVolumeMount.MountPath)
 
 	// Test5: user specifies server cert/key in the same secret, no ca cert source specified, driver should fill in the default values
 
@@ -397,16 +449,16 @@ func TestPodSpecWithTLS(t *testing.T) {
 }
 
 // validateTLSEnvAndParams is a helper method used by TestPodSpecWithTLS
-func validateTLSEnvAndParams(testName string, t *testing.T, actual v1.PodSpec) {
+func validatePodSpecWithTLS(testName string, t *testing.T, apirootcaArg, apicertArg, apikeyArg string, actual v1.PodSpec) {
 	expectedArgs := []string{
 		"-c", "px-cluster",
 		"-x", "kubernetes",
 		"-b",
 		"-a",
 		"-secret_type", "k8s",
-		"-apirootca", pxutil.DefaultTLSCACertMountPath,
-		"-apicert", pxutil.DefaultTLSServerCertMountPath,
-		"-apikey", pxutil.DefaultTLSServerKeyMountPath,
+		"-apirootca", apirootcaArg,
+		"-apicert", apicertArg,
+		"-apikey", apikeyArg,
 		"-apidisclientauth",
 	}
 

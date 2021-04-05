@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -179,18 +181,20 @@ const (
 
 // TLS related constants
 const (
-	// DefaultTLSCACertHostPath is the default location on the host for CA cert used by the porx API
-	DefaultTLSCACertHostPath = "/etc/pwx/ca.crt"
-	// DefaultTLSServerCertHostPath is the default location on the host for the server cert used by the porx API
-	DefaultTLSServerCertHostPath = "/etc/pwx/server.crt"
-	// DefaultTLSServerKeyHostPath is the default location on the host for the server key used by the porx API
-	DefaultTLSServerKeyHostPath = "/etc/pwx/server.key"
+	// DefaultTLSCertsFolder is the host location of tls cert files
+	DefaultTLSCertsFolder = "/etc/pwx"
+	// DefaultTLSCACertHostPath is the default file on the host for CA cert used by the porx API
+	DefaultTLSCACertHostFile = "rootca.crt"
+	// DefaultTLSServerCertHostPath is the default file on the host for the server cert used by the porx API
+	DefaultTLSServerCertHostFile = "server.crt"
+	// DefaultTLSServerKeyHostPath is the default file on the host for the server key used by the porx API
+	DefaultTLSServerKeyHostFile = "server.key"
 	// DefaultTLSCACertMountPath is the fixed location on the runc container where the CA cert will be mounted
-	DefaultTLSCACertMountPath = "/api-tls-certs/ca-cert/ca.crt"
+	DefaultTLSCACertMountPath = "/api-tls-certs/ca-cert/"
 	// DefaultTLSServerCertMountPath is the fixed location on the runc container where the server cert will be mounted
-	DefaultTLSServerCertMountPath = "/api-tls-certs/server-cert/server.crt"
+	DefaultTLSServerCertMountPath = "/api-tls-certs/server-cert/"
 	// DefaultTLSServerKeyMountPath is the fixed location on the runc container where the server key will be mounted
-	DefaultTLSServerKeyMountPath = "/api-tls-certs/server-key/server.key"
+	DefaultTLSServerKeyMountPath = "/api-tls-certs/server-key/"
 
 	// EnvKeyCASecretName env var for the name of the k8s secret containing the CA cert needed to connect to portworx when TLS is enabled
 	EnvKeyCASecretName = "PX_CA_CERT_SECRET"
@@ -661,10 +665,33 @@ func GetOciMonArgumentsForTLS(cluster *corev1.StorageCluster) ([]string, error) 
 		if util.IsEmptyOrNilCertLocation(advancedOptions.ServerKey) {
 			return nil, fmt.Errorf("spec.security.tls.advancedOptions.serverKey is required")
 		}
+
+		s, _ := json.MarshalIndent(cluster.Spec.Security, "", "\t")
+		logrus.Infof("GetOciMonArgumentsForTLS: Security spec = \n, %v", string(s))
+
+		apirootca, apicert, apikey := "", "", ""
+		if !util.IsEmptyOrNilSecretReference(advancedOptions.RootCA.SecretRef) {
+			apirootca = path.Join(DefaultTLSCACertMountPath, *advancedOptions.RootCA.SecretRef.SecretKey)
+		} else {
+			apirootca = path.Join(DefaultTLSCertsFolder, *advancedOptions.RootCA.FileName)
+		}
+		if !util.IsEmptyOrNilSecretReference(advancedOptions.ServerCert.SecretRef) {
+			apicert = path.Join(DefaultTLSServerCertMountPath, *advancedOptions.ServerCert.SecretRef.SecretKey)
+		} else {
+			apicert = path.Join(DefaultTLSCertsFolder, *advancedOptions.ServerCert.FileName)
+		}
+		if !util.IsEmptyOrNilSecretReference(advancedOptions.ServerKey.SecretRef) {
+			apikey = path.Join(DefaultTLSServerKeyMountPath, *advancedOptions.ServerKey.SecretRef.SecretKey)
+		} else {
+			apikey = path.Join(DefaultTLSCertsFolder, *advancedOptions.ServerKey.FileName)
+		}
+		logrus.Infof("GetOciMonArgumentsForTLS: apirootca = %v", apirootca)
+		logrus.Infof("GetOciMonArgumentsForTLS: apicert = %v", apicert)
+		logrus.Infof("GetOciMonArgumentsForTLS: apikey = %v", apikey)
 		return []string{
-			"-apirootca", DefaultTLSCACertMountPath,
-			"-apicert", DefaultTLSServerCertMountPath,
-			"-apikey", DefaultTLSServerKeyMountPath,
+			"-apirootca", apirootca,
+			"-apicert", apicert,
+			"-apikey", apikey,
 			"-apidisclientauth",
 		}, nil
 	}

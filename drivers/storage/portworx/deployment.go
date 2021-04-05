@@ -1184,28 +1184,25 @@ func (t *template) GetVolumeInfoForTLSCerts() []volumeInfo {
 	// TLS.AdvancedTLSOptions is assumed to be filled up here with defaults (if not supplied by the user)
 	advancedOptions := t.cluster.Spec.Security.TLS.AdvancedTLSOptions
 	ret := []volumeInfo{}
-	ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.RootCA, "apirootca", pxutil.DefaultTLSCACertMountPath))
-	ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.ServerCert, "apiservercert", pxutil.DefaultTLSServerCertMountPath))
-	ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.ServerKey, "apiserverkey", pxutil.DefaultTLSServerKeyMountPath))
+	if !util.IsEmptyOrNilSecretReference(advancedOptions.RootCA.SecretRef) {
+		ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.RootCA, "apirootca", pxutil.DefaultTLSCACertMountPath))
+	}
+	if !util.IsEmptyOrNilSecretReference(advancedOptions.ServerCert.SecretRef) {
+		ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.ServerCert, "apiservercert", pxutil.DefaultTLSServerCertMountPath))
+	}
+	if !util.IsEmptyOrNilSecretReference(advancedOptions.ServerKey.SecretRef) {
+		ret = append(ret, t.getVolumeInfoFromCertLocation(*advancedOptions.ServerKey, "apiserverkey", pxutil.DefaultTLSServerKeyMountPath))
+	}
 	return ret
 }
 
 func (t *template) getVolumeInfoFromCertLocation(certLocation corev1.CertLocation, volumeName, mountPath string) volumeInfo {
-	if !util.IsEmptyOrNilStringPtr(certLocation.FileName) {
-		return volumeInfo{
-			name:      volumeName,
-			hostPath:  *certLocation.FileName,
-			mountPath: mountPath,
-			readOnly:  true,
-		}
-	} else {
-		return volumeInfo{
-			name:       volumeName,
-			secretName: *certLocation.SecretRef.SecretName,
-			secretKey:  *certLocation.SecretRef.SecretKey,
-			mountPath:  mountPath,
-			readOnly:   true,
-		}
+	return volumeInfo{
+		name:       volumeName,
+		secretName: *certLocation.SecretRef.SecretName,
+		secretKey:  *certLocation.SecretRef.SecretKey,
+		mountPath:  mountPath,
+		readOnly:   true,
 	}
 }
 
