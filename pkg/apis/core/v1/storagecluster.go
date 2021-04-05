@@ -143,7 +143,7 @@ type AdvancedTLSOptions struct {
 // CertLocation specifies where portworx should pick up the certificate.
 // Certificate can be in a file on a fixed location or in a secret
 type CertLocation struct {
-	// filename on the node for the cert file. All files must be installed on a fixed location (/etc/pwx)
+	// filename on the node for the cert file.
 	FileName *string `json:"filename,omitempty"`
 	// reference to the k8s secret that holds the cert
 	SecretRef *SecretRef `json:"secretRef,omitempty"`
